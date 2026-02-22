@@ -4,16 +4,27 @@ FROM node:22-alpine
 # Set working directory
 WORKDIR /app
 
-# Install necessary dependencies for some node modules
-RUN apk add --no-cache libc6-compat
+# Install necessary dependencies for Puppeteer and system compatibility
+# We add chromium and its dependencies to avoid downloading it via npm
+RUN apk add --no-cache \
+    chromium \
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont \
+    libc6-compat
+
+# Tell Puppeteer to skip downloading Chromium
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 # Copy package files
 COPY package*.json ./
 
 # Install production dependencies only
-# We use --package-lock-only to ensure consistency if needed, 
-# but for a clean build we just do a regular install
-RUN npm install --omit=dev
+# Using --no-audit and --no-fund to speed up and avoid hangs
+RUN npm install --omit=dev --no-audit --no-fund
 
 # Copy the rest of the application code
 COPY . .
@@ -25,8 +36,8 @@ RUN mkdir -p ./src/logs
 EXPOSE 3000
 
 # Environment variables
-ENV NODE_ENV=production
-ENV PORT=3000
+ENV NODE_ENV=production \
+    PORT=3000
 
 # Healthcheck
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \

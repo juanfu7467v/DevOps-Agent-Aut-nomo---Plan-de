@@ -1,0 +1,11 @@
+node_modules
+npm-debug.log
+.git
+.env
+.DS_Store
+src/logs/*.log
+Dockerfile
+.dockerignore
+fly.toml
+README.md
+package-lock.json
