@@ -1,4 +1,4 @@
-# Fly.io configuration
+# Fly.io configuration for devops-agent
 app = "devops-agent"
 primary_region = "iad"
 
@@ -8,13 +8,14 @@ primary_region = "iad"
 [env]
   NODE_ENV = "production"
   LOG_LEVEL = "info"
+  PORT = "3000"
 
 [http_service]
   internal_port = 3000
   force_https = true
   auto_stop_machines = true
   auto_start_machines = true
-  min_machines_running = 1
+  min_machines_running = 0
 
 [[http_service.checks]]
   grace_period = "10s"
@@ -23,40 +24,9 @@ primary_region = "iad"
   path = "/health"
   protocol = "http"
   timeout = "5s"
-  type = "http"
+  tls_skip_verify = false
 
-[[vm]]
+[vm]
   cpu_kind = "shared"
   cpus = 1
   memory_mb = 256
-  processes = ["app"]
-
-[processes]
-  app = "node src/server.js"
-
-[deploy]
-  release_command = "echo 'Deployment started'"
-  strategy = "rolling"
-
-[[services]]
-  internal_port = 3000
-  processes = ["app"]
-  protocol = "tcp"
-  
-  [services.concurrency]
-    hard_limit = 100
-    soft_limit = 50
-    type = "connections"
-
-  [[services.ports]]
-    handlers = ["http"]
-    port = 80
-
-  [[services.ports]]
-    handlers = ["tls", "http"]
-    port = 443
-
-  [[services.tcp_checks]]
-    grace_period = "10s"
-    interval = "15s"
-    timeout = "5s"
