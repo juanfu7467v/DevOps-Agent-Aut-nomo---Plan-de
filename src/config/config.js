@@ -5,6 +5,12 @@ const config = {
   port: process.env.PORT || 3000,
   host: process.env.HOST || '0.0.0.0',
   
+  // 🟢 AGREGAMOS ESTO (Lo que el logger necesita)
+  logging: {
+    level: process.env.LOG_LEVEL || 'info',
+    dir: process.env.LOG_DIR || './logs',
+  },
+
   // Firebase Admin Credentials (para Firestore)
   firebase: {
     projectId: process.env.FIREBASE_PROJECT_ID,
