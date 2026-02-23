@@ -1,42 +1,18 @@
 {
   "name": "devops-agent",
   "version": "1.0.0",
-  "description": "Autonomous DevOps Agent with modular architecture for production deployment",
+  "description": "Autonomous DevOps Agent with modular architecture - Multi-user Version",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "nodemon src/server.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "lint": "echo \"Linting...\""
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/juanfu7467v/DevOps-Agent-Aut-nomo---Plan-de.git"
-  },
-  "keywords": [
-    "devops",
-    "automation",
-    "agent",
-    "deployment",
-    "monitoring",
-    "github",
-    "webhooks"
-  ],
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/juanfu7467v/DevOps-Agent-Aut-nomo---Plan-de/issues"
-  },
-  "homepage": "https://github.com/juanfu7467v/DevOps-Agent-Aut-nomo---Plan-de#readme",
-  "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=9.0.0"
+    "dev": "nodemon src/server.js"
   },
   "dependencies": {
     "axios": "^1.6.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
+    "firebase-admin": "^12.0.0",
     "helmet": "^7.1.0",
     "morgan": "^1.10.0",
     "node-cron": "^3.0.2",
