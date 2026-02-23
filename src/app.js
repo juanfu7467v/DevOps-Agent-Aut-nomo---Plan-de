@@ -14,14 +14,28 @@ app.use(cors({ origin: config.security.corsOrigins }));
 app.use(morgan('dev'));
 app.use(express.json());
 
-// --- ENDPOINTS PROTEGIDOS ---
+// ==========================================
+// ✅ ENDPOINT DE SALUD (PÚBLICO)
+// Importante: No lleva AuthMiddleware porque Fly.io lo usa para verificar el estado
+// ==========================================
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'up',
+    timestamp: new Date().toISOString(),
+    service: 'devops-agent'
+  });
+});
+
+// ==========================================
+// 🔐 ENDPOINTS PROTEGIDOS (Requieren x-api-key)
+// ==========================================
 
 // 1. Ejecutar instrucción autónoma (Tipo Manus)
 app.post('/api/v1/execute', AuthMiddleware.verifyApiKey, async (req, res) => {
   const { instruction, context } = req.body;
   
-  // 'req.user' contiene los tokens de GitHub/Vercel del usuario actual
   try {
+    // El agente usa los datos del usuario (tokens de GitHub, etc.) inyectados por el middleware
     const result = await taskService.runDeepSeekAgent(instruction, context, req.user);
     res.json({ success: true, data: result });
   } catch (error) {
@@ -32,7 +46,7 @@ app.post('/api/v1/execute', AuthMiddleware.verifyApiKey, async (req, res) => {
 // 2. Chat rápido con el agente
 app.post('/api/agent/chat', AuthMiddleware.verifyApiKey, async (req, res) => {
   const { message } = req.body;
-  res.json({ success: true, response: `Agente DeepSeek procesando: ${message}` });
+  res.json({ success: true, response: `Agente DeepSeek analizando: ${message}` });
 });
 
 // 3. Obtener conectores del usuario (GitHub, Slack, etc.)
