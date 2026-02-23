@@ -1,70 +1,50 @@
+const admin = require('firebase-admin');
+const config = require('../config/config');
 const logger = require('../services/logger');
 
+// Inicializar Firebase Admin una sola vez
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId: config.firebase.projectId,
+      clientEmail: config.firebase.clientEmail,
+      privateKey: config.firebase.privateKey,
+    })
+  });
+}
+
+const db = admin.firestore();
+
 class AuthMiddleware {
-  static verifyApiKey(req, res, next) {
-    const apiKey = req.get('Authorization')?.replace('Bearer ', '');
-    const expectedKey = process.env.API_KEY;
+  static async verifyApiKey(req, res, next) {
+    const apiKey = req.get('x-api-key');
 
-    if (!apiKey || !expectedKey) {
-      logger.warn('Missing API key');
-      return res.status(401).json({
-        success: false,
-        error: 'Missing or invalid API key',
-      });
+    if (!apiKey) {
+      logger.warn('Intento de acceso sin API Key');
+      return res.status(401).json({ success: false, error: 'x-api-key requerida' });
     }
 
-    if (apiKey !== expectedKey) {
-      logger.warn('Invalid API key', { apiKey: apiKey.substring(0, 10) });
-      return res.status(401).json({
-        success: false,
-        error: 'Invalid API key',
-      });
-    }
+    try {
+      // Buscar el usuario que tiene esta API Key en Firestore
+      const userQuery = await db.collection('users').where('apiKey', '==', apiKey).limit(1).get();
 
-    next();
-  }
-
-  static verifyWebhookSignature(secret) {
-    return (req, res, next) => {
-      const signature = req.get('X-Webhook-Signature');
-
-      if (!signature) {
-        logger.warn('Missing webhook signature');
-        return res.status(401).json({
-          success: false,
-          error: 'Missing webhook signature',
-        });
+      if (userQuery.empty) {
+        logger.warn(`API Key inválida: ${apiKey.substring(0, 5)}...`);
+        return res.status(401).json({ success: false, error: 'API Key inválida o inexistente' });
       }
 
-      const crypto = require('crypto');
-      const hash = crypto
-        .createHmac('sha256', secret)
-        .update(JSON.stringify(req.body))
-        .digest('hex');
-
-      if (hash !== signature) {
-        logger.warn('Invalid webhook signature');
-        return res.status(401).json({
-          success: false,
-          error: 'Invalid webhook signature',
-        });
-      }
+      // Adjuntar los datos del usuario (ID y conectores) al request
+      const userDoc = userQuery.docs[0];
+      req.user = {
+        id: userDoc.id,
+        ...userDoc.data()
+      };
 
       next();
-    };
-  }
-
-  static optional(req, res, next) {
-    const apiKey = req.get('Authorization')?.replace('Bearer ', '');
-    const expectedKey = process.env.API_KEY;
-
-    if (apiKey && expectedKey && apiKey === expectedKey) {
-      req.authenticated = true;
-    } else {
-      req.authenticated = false;
+    } catch (error) {
+      logger.error('Error validando API Key en Firestore:', error);
+      res.status(500).json({ success: false, error: 'Error interno de autenticación' });
     }
-
-    next();
   }
 }
 
