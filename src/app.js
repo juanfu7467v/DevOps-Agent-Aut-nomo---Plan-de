@@ -1,79 +1,46 @@
 const express = require('express');
+const cors = require('cors');
 const helmet = require('helmet');
+const morgan = require('morgan');
 const config = require('./config/config');
-const logger = require('./services/logger');
-const corsMiddleware = require('./middleware/corsMiddleware');
-const rateLimitMiddleware = require('./middleware/rateLimitMiddleware');
-const loggingMiddleware = require('./middleware/loggingMiddleware');
-const errorMiddleware = require('./middleware/errorMiddleware');
-const healthController = require('./controllers/healthController');
-const taskController = require('./controllers/taskController');
-const deploymentController = require('./controllers/deploymentController');
+const AuthMiddleware = require('./middleware/authMiddleware');
+const taskService = require('./services/taskService');
 
 const app = express();
 
-// Security middleware
+// Middlewares globales
 app.use(helmet());
-app.use(corsMiddleware);
+app.use(cors({ origin: config.security.corsOrigins }));
+app.use(morgan('dev'));
+app.use(express.json());
 
-// Body parser
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ limit: '10mb', extended: true }));
+// --- ENDPOINTS PROTEGIDOS ---
 
-// Rate limiting
-app.use(rateLimitMiddleware.middleware());
-
-// Logging
-app.use(loggingMiddleware);
-
-// Health endpoints
-app.get('/health', healthController.getHealth);
-app.get('/stats', healthController.getStats);
-
-// Task endpoints
-app.get('/api/tasks', taskController.getAllTasks);
-app.get('/api/tasks/:taskId', taskController.getTask);
-app.post('/api/tasks/:taskId/execute', taskController.executeTask);
-app.get('/api/tasks/history', taskController.getTaskHistory);
-app.get('/api/cron-jobs', taskController.getAllCronJobs);
-
-// Deployment endpoints
-app.post('/api/deployments', deploymentController.createDeployment);
-app.get('/api/deployments', deploymentController.getAllDeployments);
-app.get('/api/deployments/:deploymentId', deploymentController.getDeployment);
-app.post('/api/deployments/:deploymentId/execute', deploymentController.executeDeployment);
-app.get('/api/deployments/:deploymentId/logs', deploymentController.getDeploymentLogs);
-app.delete('/api/deployments/:deploymentId', deploymentController.cancelDeployment);
-app.get('/api/deployments/history', deploymentController.getDeploymentHistory);
-
-// Logs endpoint
-app.get('/logs', (req, res) => {
+// 1. Ejecutar instrucción autónoma (Tipo Manus)
+app.post('/api/v1/execute', AuthMiddleware.verifyApiKey, async (req, res) => {
+  const { instruction, context } = req.body;
+  
+  // 'req.user' contiene los tokens de GitHub/Vercel del usuario actual
   try {
-    const { type = 'info', limit = 100 } = req.query;
-    const logs = logger.getLogs(type, parseInt(limit));
-    res.status(200).json({
-      success: true,
-      data: logs,
-    });
+    const result = await taskService.runDeepSeekAgent(instruction, context, req.user);
+    res.json({ success: true, data: result });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    error: 'Endpoint not found',
-    path: req.path,
-    method: req.method,
-  });
+// 2. Chat rápido con el agente
+app.post('/api/agent/chat', AuthMiddleware.verifyApiKey, async (req, res) => {
+  const { message } = req.body;
+  res.json({ success: true, response: `Agente DeepSeek procesando: ${message}` });
 });
 
-// Error middleware
-app.use(errorMiddleware);
+// 3. Obtener conectores del usuario (GitHub, Slack, etc.)
+app.get('/api/connectors', AuthMiddleware.verifyApiKey, (req, res) => {
+  res.json({ 
+    success: true, 
+    connectors: req.user.connectors || {} 
+  });
+});
 
 module.exports = app;
